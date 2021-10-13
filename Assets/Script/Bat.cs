@@ -7,8 +7,8 @@ public class Bat : MonoBehaviour
 {
     private const float MIN_FORCE  =   800f;   // Сила броска
     private const float MAX_FORCE  =  1500f;   //  биты
-    private const float MIN_TORQUE =   150f;   // Вращательный
-    private const float MAX_TORQUE =   1e5f;   //  момент биты
+    private const float MIN_TORQUE =  -1e3f;   // Вращательный
+    private const float MAX_TORQUE =   1e3f;   //  момент биты
 
     private Rigidbody Rigidbody;
     private GameObject bat;
@@ -22,16 +22,35 @@ public class Bat : MonoBehaviour
 
     private Quaternion BatStartRotation;
 
-    private Slider ForceSlider; // ссылка на слайдер изменения силы броска
+    private Slider ForceSlider;    // ссылка на слайдер изменения силы броска
     private Slider RotationSlider; // ссылка на слайдер изменения силы вращения
     private Vector3 forceDirection;
     private float forceFactor; // начальная сила броска
-    private float forceRotat; // начальная сила вращения
+    private float forceRotat;  // начальная сила вращения
 
-    private Collider Gorod;  // Коллайдер объекта "Gorod" - границы города
+    private Collider Gorod;    // Коллайдер объекта "Gorod" - границы города
+
+    private int figure;        // номер фигуры (раунд)
+    private List<GameObject> Figures;
+    private GameObject FigurePlace;  // "Якорь" для установки фигуры
 
     void Start()
     {
+        FigurePlace = GameObject.Find("FigurePlace");
+
+        figure = 1;
+        Figures = new List<GameObject>();
+        while(true)
+        {
+            GameObject fig = GameObject.Find("Figure" + figure);
+            if (fig == null) break;
+            if (figure > 1) fig.SetActive(false);
+            Figures.Add(fig);
+            figure++;
+        }
+        figure = 1;
+        Figures[0].transform.position = FigurePlace.transform.TransformPoint(Vector3.zero);
+
         CameraPosition2 = new Vector3(0, 5, -3);
 
         batBase = GameObject.Find("BatBase");
@@ -81,8 +100,9 @@ public class Bat : MonoBehaviour
 
                 GameObject.Find("Main Camera").transform.position = CameraPosition2;
 
-                RemoveBars();
-                Debug.Log(BatPosition2);
+                if(RemoveBars() == 0) ChangeFigure();
+
+                // Debug.Log(BatPosition2);
             }
         }
         #endregion
@@ -101,13 +121,14 @@ public class Bat : MonoBehaviour
         #endregion
     }
 
-    private void RemoveBars()
+    private int RemoveBars()
     {
         // Задание: вывести координаты центров всех брусков
         // 1. Добавили ко всем брускам тег "Bar"
         // 2. Находим их по тегу
         GameObject[] bars = GameObject.FindGameObjectsWithTag("Bar");
         // 3. Обходим циклом и выводим
+        int barsInGorod = 0;
         foreach(GameObject bar in bars)
         {
             if(Gorod.bounds.Contains(  // входит ли точка в границы коллайдера
@@ -117,15 +138,30 @@ public class Bat : MonoBehaviour
                 Rigidbody rb = bar.GetComponent<Rigidbody>();
                 rb.velocity = Vector3.zero;
                 rb.angularVelocity = Vector3.zero;
+                barsInGorod++;
             }
             else
             {
                 // брусок вышел за "город" - деактивируем
                 bar.SetActive(false);
-            }
-           
+            }           
         }
         // Debug.Log(Gorod.bounds.center);
         // Debug.Log(Gorod.bounds.size); // ! Размер больше, чем в редакторе ??
+        return barsInGorod;
+    }
+
+    private bool ChangeFigure()
+    {
+        if (figure >= Figures.Count) return false;
+
+        Figures[figure-1].SetActive(false);
+        
+        Figures[figure].SetActive(true);
+        Figures[figure].transform.position = FigurePlace.transform.position;
+        
+        figure++;
+
+        return true;
     }
 }
