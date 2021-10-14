@@ -1,14 +1,16 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Xml.Serialization;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class Bat : MonoBehaviour
 {
-    private const float MIN_FORCE  =   800f;   // Сила броска
-    private const float MAX_FORCE  =  1500f;   //  биты
-    private const float MIN_TORQUE =  -1e3f;   // Вращательный
-    private const float MAX_TORQUE =   1e3f;   //  момент биты
+    private const float  MIN_FORCE  =   800f;   // Сила броска
+    private const float  MAX_FORCE  =  1500f;   //  биты
+    private const float  MIN_TORQUE =  -1e3f;   // Вращательный
+    private const float  MAX_TORQUE =   1e3f;   //  момент биты
+    private const string GAMES_HISTORY_FILE = "history.xml";
 
     private Rigidbody Rigidbody;
     private GameObject bat;
@@ -34,8 +36,14 @@ public class Bat : MonoBehaviour
     private List<GameObject> Figures;
     private GameObject FigurePlace;  // "Якорь" для установки фигуры
 
+    private List<GameResult> GamesHistory;
+    private int throws;  // кол-во бросков (за всю игру)
+
+
     void Start()
     {
+        LoadHistory();
+        throws = 0;
         FigurePlace = GameObject.Find("FigurePlace");
 
         figure = 1;
@@ -111,12 +119,21 @@ public class Bat : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Space))
         {
             forceFactor = MIN_FORCE + ForceSlider.value * (MAX_FORCE - MIN_FORCE);
-            Rigidbody.AddForce(forceFactor  * forceDirection); // бросок 
+            Rigidbody.AddForce(forceFactor  * forceDirection);  // бросок 
             Rigidbody.velocity = forceDirection * 0.2f;
 
             forceRotat = MIN_TORQUE + RotationSlider.value * (MAX_TORQUE - MIN_TORQUE);
-            Rigidbody.AddTorque(Vector3.up * forceRotat ); // вращение
+            Rigidbody.AddTorque(Vector3.up * forceRotat );  // вращение
             isBatMoving = true;
+            throws++;
+        }
+        #endregion
+
+        #region Features
+        if (Input.GetKeyDown(KeyCode.S))
+        {
+            SaveHistory();
+            Debug.Log("Saved");
         }
         #endregion
     }
@@ -164,4 +181,45 @@ public class Bat : MonoBehaviour
 
         return true;
     }
+
+    private void LoadHistory()
+    {
+        if (System.IO.File.Exists(GAMES_HISTORY_FILE))
+        {
+            using (var reader = new System.IO.StreamReader(GAMES_HISTORY_FILE))
+            {
+                var serializer = new XmlSerializer(typeof(List<GameResult>));
+                GamesHistory = (List<GameResult>)
+                    serializer.Deserialize(reader);
+                Debug.Log("Deserialized: " + GamesHistory.Count);
+            }
+        }
+    }
+
+    private void SaveHistory()
+    {
+        if(GamesHistory == null)
+        {
+            GamesHistory = new List<GameResult>();
+        }
+        GamesHistory.Add(new GameResult
+        {
+            Figures = figure,
+            Throws = throws,
+            Time = 0
+        });
+        using(var writer = new System.IO.StreamWriter(GAMES_HISTORY_FILE))
+        {
+            var serializer = new XmlSerializer(GamesHistory.GetType());
+            serializer.Serialize(writer, GamesHistory);
+        }
+        
+    }
+}
+
+public class GameResult
+{
+    public int Figures { get; set; }  // сбито фигур
+    public int Throws { get; set; }   // совершено бросков
+    public float Time { get; set; }   // затрачено времени
 }
